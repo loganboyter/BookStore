@@ -1,0 +1,220 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>@ViewBag.Title</title>
+    @Styles.Render("~/Content/css")
+    @Scripts.Render("~/bundles/modernizr")
+    <script type="text/javascript">
+        var appInsights=window.appInsights||function(config){
+            function s(config){t[config]=function(){var i=arguments;t.queue.push(function(){t[config].apply(t,i)})}}var t={config:config},r=document,f=window,e="script",o=r.createElement(e),i,u;for(o.src=config.url||"//az416426.vo.msecnd.net/scripts/a/ai.0.js",r.getElementsByTagName(e)[0].parentNode.appendChild(o),t.cookie=r.cookie,t.queue=[],i=["Event","Exception","Metric","PageView","Trace"];i.length;)s("track"+i.pop());return config.disableExceptionTracking||(i="onerror",s("_"+i),u=f[i],f[i]=function(config,r,f,e,o){var s=u&&u(config,r,f,e,o);return s!==!0&&t["_"+i](config,r,f,e,o),s}),t
+        }({
+            instrumentationKey:"d729bb6d-9b8b-4d59-bb0c-6076b0be4272"
+        });
+        
+        window.appInsights=appInsights;
+        appInsights.trackPageView();
+    </script>
+</head>
+<body>
+    <div class="navbar navbar-inverse navbar-fixed-top">
+        <div class="container">
+            <div class="navbar-header">
+                <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                </button>
+                @Html.ActionLink("Book Store", "Index", "Home", new { area = "" }, new { @class = "navbar-brand" })
+            </div>
+            <div class="navbar-collapse collapse">
+                <ul class="nav navbar-nav">
+                    <li>@Html.ActionLink("Home", "Index", "Home", new { area = "" }, null)</li>
+                    <li>@Html.ActionLink("Login", "Index", "Login", new { area = "" }, null)</li>
+                    <li>@Html.ActionLink("Wishlist", "Index", "Wishlist", new { area = "" }, null)</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    <div class="container body-content">
+        @RenderBody()
+        <hr />
+        <footer>
+            <p>&copy; @DateTime.Now.Year - My ASP.NET Application</p>
+        </footer>
+    </div>
+
+    <script type="text/javascript">
+    var bookStore = {};
+    bookStore.search = function (search, sort) {
+        var request = new XMLHttpRequest();
+        if (search === "") search = "nosearch";
+        request.open("GET", "/api/v1/Book/all/" + search + "/" + sort);
+        request.onload = function () {
+            if (this.status >= 200 && this.status < 400) {
+                var response = JSON.parse(this.response);
+                console.log(response);
+                bookStore.writeBookResults(response);
+            }
+            else {
+                console.log("Error on GET: " + this.response);
+            }
+        }
+        request.onerror = function () {
+            console.log("Com error on GET");
+        }
+        request.send(JSON.stringify());
+    }
+    bookStore.writeBookResults = function (books, page) {
+        var holder = "";
+        for (var i in books) {
+            holder += "<div class='row'><div class='col-md-3'>";
+            holder += "<img class='img-responsive' src='" + books[i].Image + "'/>";
+            holder += "</div><div class='col-md-9'>";
+            holder += "<a href='/Details' class='h3' onclick=\"window.sessionStorage.setItem('details'," + books[i].Id + ")\">" + books[i].Title + "</a>";
+            holder += "<p class='pull-right'>Price: $" + books[i].Price + "</p>"
+            if (page !== "wishlist") holder += "<button class='btn btn-success' onclick='bookStore.addToWishlist(" + books[i].Id + ")'>+Add To Wishlist</button>";
+            if (page === "wishlist") holder += "<button class='btn btn-danger' onclick='bookStore.removeFromWishlist(" + books[i].Id + ")'>-Remove From Wishlist</button>";
+            holder += "<p>Author: " + books[i].Author + "</p>";
+            //holder += "<p>Pages: " + books[i].Pages + "</p>";
+            //holder += "<p>Stock: " + books[i].Stock + "</p>";
+            holder += "</div></div><br>"
+        }
+        document.getElementById("book-list").innerHTML = holder;
+    }
+    bookStore.login = function (user) {
+        var request = new XMLHttpRequest();
+        request.open("POST", "/Token");
+        request.onload = function () {
+            if (this.status >= 200 && this.status < 400) {
+                var response = JSON.parse(this.response);
+                window.sessionStorage.setItem("token", response.access_token);
+                alert("Sucessfully logged in as " + user + "!");
+                console.log(response);
+            }
+            else {
+                console.log("Error on POST: " + this.response);
+                
+            }
+        }
+        request.onerror = function () {
+            console.log("Com error on POST");
+        }
+        request.send('username=' + user + '&password=123456&grant_type=password');
+    }
+    bookStore.getWishlist = function () {
+        var request = new XMLHttpRequest();
+        request.open("GET", "/api/v1/Wishlist");
+        request.setRequestHeader("Authorization", "Bearer " + window.sessionStorage.getItem("token"));
+        request.onload = function () {
+            if (this.status >= 200 && this.status < 400) {
+                var response = JSON.parse(this.response);
+                console.log(response);
+                bookStore.writeBookResults(response, "wishlist");
+            }
+            else {
+                console.log("Error on GET: " + this.response);
+            }
+        }
+        request.onerror = function () {
+            console.log("Com error on GET");
+        }
+        request.send('');
+    }
+    bookStore.addToWishlist = function (bookId) {
+        var request = new XMLHttpRequest();
+        request.open("POST", "/api/v1/Wishlist/" + bookId);
+        request.setRequestHeader("Authorization", "Bearer " + window.sessionStorage.getItem("token"));
+        request.onload = function () {
+            if (this.status >= 200 && this.status < 400) {
+                var response = JSON.parse(this.response);
+                console.log(response);
+                alert("Book added to wishlist!");
+            }
+            else {
+                console.log("Error on POST: " + this.response);
+                if (JSON.parse(this.response).Message == "Authorization has been denied for this request.") alert("Sorry, it looks like you aren't logged in.");
+            }
+        }
+        request.onerror = function () {
+            console.log("Com error on POST");
+        }
+        request.send(JSON.stringify());
+    }
+    bookStore.removeFromWishlist = function (bookId) {
+        var request = new XMLHttpRequest();
+        request.open("DELETE", "/api/v1/Wishlist/" + bookId);
+        request.setRequestHeader("Authorization", "Bearer " + window.sessionStorage.getItem("token"));
+        request.onload = function () {
+            if (this.status >= 200 && this.status < 400) {
+                bookStore.getWishlist();
+                var response = JSON.parse(this.response);
+                console.log(response);
+            }
+            else {
+                console.log("Error on DELETE: " + this.response);
+            }
+        }
+        request.onerror = function () {
+            console.log("Com error on DELETE");
+        }
+        request.send(JSON.stringify());
+    }
+    bookStore.getBooks = function () {
+        var request = new XMLHttpRequest();
+        request.open("GET", "/api/v1/Book/all");
+        request.onload = function () {
+            if (this.status >= 200 && this.status < 400) {
+                var response = JSON.parse(this.response);
+                console.log(response);
+                bookStore.writeBookResults(response);
+            }
+            else {
+                console.log("Error on GET: " + this.response);
+            }
+        }
+        request.onerror = function () {
+            console.log("Com error on GET");
+        }
+        request.send(JSON.stringify());
+    }
+    bookStore.bookDetails = 0;
+    bookStore.getBook = function () {
+        var request = new XMLHttpRequest();
+        request.open("GET", "/api/v1/Book/" + window.sessionStorage.getItem("details"));
+        request.onload = function () {
+            if (this.status >= 200 && this.status < 400) {
+                var book = JSON.parse(this.response);
+                console.log(book);
+                var holder = "";
+                holder += "<div class='row'><div class='col-md-3'>";
+                holder += "<img class='img-responsive' src='" + book.Image + "'/>";
+                holder += "</div><div class='col-md-9'>";
+                holder += "<a href='/Details' class='h3' onclick=\"window.sessionStorage.setItem('details'," + book.Id + ")\">" + book.Title + "</a>";
+                holder += "<p class='pull-right'>Price: $" + book.Price + "</p>"
+                holder += "<button class='btn btn-success' onclick='bookStore.addToWishlist(" + book.Id + ")'>+Add To Wishlist</button>";
+                holder += "<p>Author: " + book.Author + "</p>";
+                holder += "<p>Pages: " + book.Pages + "</p>";
+                holder += "<p>Stock: " + book.Stock + "</p>";
+                holder += "</div></div><br>"
+                document.getElementById("book-list").innerHTML = holder;
+            }
+            else {
+                console.log("Error on GET: " + this.response);
+            }
+        }
+        request.onerror = function () {
+            console.log("Com error on GET");
+        }
+        request.send(JSON.stringify());
+    }
+    </script>
+
+
+
+    @Scripts.Render("~/bundles/jquery")
+    @Scripts.Render("~/bundles/bootstrap")
+    @RenderSection("scripts", required: false)
+</body>
+</html>
